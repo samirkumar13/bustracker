@@ -1,0 +1,9 @@
+{
+  "name": "bustracker-simulator",
+  "version": "1.0.0",
+  "description": "Mock GPS and NFC simulators for BusTracker testing",
+  "scripts": {
+    "gps": "node gps-simulator.js",
+    "nfc": "node nfc-simulator.js"
+  }
+}
