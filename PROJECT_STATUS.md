@@ -1,144 +1,40 @@
 # BusTracker — Project Status
+Last updated: 2026-06-08
 
-Last updated: 2026-06-04
+## ✅ Done
+
+**Infrastructure** — Docker/PostgreSQL, backend :3000, web :5173, monorepo
+
+**Backend** — Full Prisma schema (User/Bus/Driver/Route/Stop/Student/Parent/BusLocation/Attendance), JWT auth + RBAC (ADMIN/DRIVER/PARENT/STUDENT), REST API, Socket.IO (GPS broadcast + attendance events), Arduino endpoints (device-key auth), Zod validation on all mutating routes (`src/schemas.js` + `src/middleware/validate.js`), seed script
+
+**Mobile** — Login/Register, HomeScreen (bus list + live badge), BusTrackingScreen (OSM map + ETA stop timeline), DriverScreen (GPS broadcast), AttendanceScreen (live NFC feed), ProfileScreen (parent links child, student picks stop), role-based tabs, push notifications (Alert.alert fallback in Expo Go; dev build config via eas.json + expo-dev-client)
+
+**Web admin** — Login, Dashboard, Buses (create/assign driver+route), Routes (map-based stop picker), Users (NFC card assignment), Attendance (today's log), Live Map
+
+**ETA per stop** — `computeEtas()` in BusTrackingScreen: haversine distance, nearest-stop heuristic, speed from socket (20 km/h fallback). Stop timeline shows Passed / Next·N min / Arriving now / ~N min. Leaflet dot colours update live.
+
+**Simulators** — GPS moves bus along route; NFC triggers attendance + parent alert
+```
+cd simulator && node gps-simulator.js   # BUS_ID set in script
+cd simulator && node nfc-simulator.js
+```
+
+**Arduino sketches** — ESP32+NEO-6M (GPS, posts every 5s), ESP32+RC522 (NFC, buzzer+LED). Hardware pending.
 
 ---
 
-## ✅ DONE
+## 🔲 Remaining
 
-### Infrastructure
-- [x] Monorepo structure (`backend/`, `mobile/`, `web/`, `arduino/`)
-- [x] Docker Compose — PostgreSQL on `localhost:5432`
-- [x] Backend running on `http://localhost:3000`
-- [x] Web Admin running on `http://localhost:5173`
-
-### Backend (Node.js + Express + Prisma + Socket.IO)
-- [x] Full DB schema — User, Bus, Driver, Route, Stop, Student, Parent, BusLocation, Attendance
-- [x] JWT Auth + role-based middleware (ADMIN, DRIVER, PARENT, STUDENT)
-- [x] REST API — auth, buses, routes, stops, users, attendance
-- [x] Real-time Socket.IO — GPS broadcast + attendance events
-- [x] Arduino endpoints (device key auth, no JWT)
-  - POST `/api/attendance/gps` — receives GPS from Arduino
-  - POST `/api/attendance/scan` — receives NFC tap from Arduino
-- [x] Student self-assignment endpoint (route + stop)
-- [x] Seed script — school, bus, route, 4 stops, 4 test users
-
-### Mobile App (Expo / React Native)
-- [x] Login & Register screens (PARENT / STUDENT roles)
-- [x] HomeScreen — lists all buses with live/offline badge
-- [x] BusTrackingScreen — OSM map, live bus marker, stops, polyline
-- [x] DriverScreen — OSM map with GPS broadcasting + trail
-- [x] ProfileScreen — user info, student picks route & stop
-- [x] AttendanceScreen — NFC scan history, live alerts via socket
-- [x] Bottom tab navigation (Buses / Attendance / Profile)
-- [x] Push notifications — parent alerted on child NFC scan
-- [x] OpenStreetMap (free, no API key)
-- [x] Role-based routing (Driver gets different tabs)
-
-### Web Admin Dashboard (React + Vite)
-- [x] Login (admin only, pre-filled with seed credentials)
-- [x] Dashboard — stats + Arduino endpoint reference
-- [x] Buses page — add bus, assign driver & route
-- [x] Routes page — create routes with ordered stops
-- [x] Users page — view all users by role, assign NFC card UIDs
-- [x] Attendance page — today's scan log, boarded/exited counts
-- [x] Map-based stop picker — click map to place stops (no lat/lng typing)
-- [x] Token expiry — auto logout on 401, web redirects to /login
-- [x] Error screens with Retry button on all mobile screens
-- [x] Parent-child linking — parent links by student email in Profile screen
-- [x] App name "BusTracker", blue splash, android package ID set
-- [x] Simulator auto-logins (no hardcoded expiring token)
-- [x] Attendance screen shows parent's children's records (not parent's own)
-- [x] NFC card status visible per student in admin Users table
-- [x] Live Map — real-time OSM map of all active buses
-
-### Arduino / Hardware (Code ready, hardware pending)
-- [x] GPS Tracker sketch — ESP32 + NEO-6M, posts every 5s
-- [x] NFC Attendance sketch — ESP32 + RC522, buzzer + LED feedback
-- [x] Both sketches send to backend with device key auth
+| Item | Priority |
+|------|----------|
+| Mobile input validation — Register (email format, password ≥6), Login (email format), link-child (email format + error message) | High |
+| Web Buses form — capacity field accepts 0/negative | Low |
+| `eas init` → `eas build --profile development` (real push notifications) | Medium |
+| Production deployment — VPS, Docker, reverse proxy, HTTPS, env vars | Medium |
+| Arduino — flash sketches, wire modules, configure WiFi/SERVER_URL/BUS_ID | When hardware arrives |
 
 ---
 
-## ✅ SIMULATORS (test without hardware)
-
-```bash
-# GPS Simulator — moves bus along route on the map
-cd simulator
-BUS_ID=cmpz44rar000bkmv7olehpymn ADMIN_TOKEN=<token> node gps-simulator.js
-
-# NFC Simulator — type card UIDs to simulate student tap
-BUS_ID=cmpz44rar000bkmv7olehpymn node nfc-simulator.js
-```
-
-## 🔲 WHEN HARDWARE ARRIVES
-
-- [ ] Flash GPS sketch to ESP32, wire NEO-6M module
-- [ ] Flash NFC sketch to second ESP32, wire RC522 reader
-- [ ] Update `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL`, `BUS_ID` in sketches
-- [ ] Assign NFC card UIDs to students via Admin Dashboard → Users
-- [ ] Test full flow: student taps → parent gets notification
-- [ ] Mount GPS unit on bus, test live tracking
-
-## 🔲 FUTURE IMPROVEMENTS
-- [x] ETA calculation per stop (client-side, haversine + nearest-stop heuristic)
-- [ ] Production deployment (backend on VPS, mobile build via EAS)
-- [ ] Input validation (Zod) on all backend routes
-
----
-
-## 🚀 HOW TO RUN
-
-```bash
-# 1. Start database
-docker-compose up -d
-
-# 2. Start backend  (in /backend)
-npm run dev
-
-# 3. Start web admin  (in /web)
-npm run dev        → http://localhost:5173
-                     login: admin@school.com / admin123
-
-# 4. Start mobile app  (in /mobile)
-npx expo start --clear   # press 'a' for Android
-```
-
-## 🧪 TEST ACCOUNTS
-| Role    | Email                | Password  |
-|---------|----------------------|-----------|
-| ADMIN   | admin@school.com     | admin123  |
-| DRIVER  | driver@school.com    | driver123 |
-| PARENT  | parent@school.com    | parent123 |
-| STUDENT | student@school.com   | student123|
-
----
-
-## 📁 PROJECT STRUCTURE
-
-```
-bustracker/
-├── backend/
-│   ├── prisma/schema.prisma + seed.js
-│   └── src/
-│       ├── controllers/   auth, bus, route
-│       ├── routes/        auth, buses, routes, stops, users, attendance
-│       ├── middleware/    auth.js
-│       └── services/      socketService.js
-├── mobile/
-│   └── src/
-│       ├── screens/       Login, Register, Home, BusTracking, Driver, Profile, Attendance
-│       ├── navigation/    AppNavigator (role-based tabs)
-│       ├── context/       AuthContext
-│       ├── components/    LeafletMap, DriverMap
-│       └── services/      api.js, socket.js, notifications.js
-├── web/
-│   └── src/
-│       ├── pages/         Login, Dashboard, Buses, Routes, Users, Attendance, LiveMap
-│       ├── components/    Sidebar
-│       └── context/       AuthContext
-├── arduino/
-│   ├── gps_tracker/       gps_tracker.ino
-│   └── nfc_attendance/    nfc_attendance.ino
-├── docker-compose.yml
-└── PROJECT_STATUS.md
-```
+## Hardware (per bus)
+2× ESP32 DevKit v1 · NEO-6M GPS · RC522 RFID · Mifare cards · 4G router or hotspot
+Server: Hetzner CX22 ($6/mo, 2 vCPU 4GB) handles most school sizes

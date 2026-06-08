@@ -1,78 +1,53 @@
-# BusTracker — Handoff Note
-> Read this at the start of every new chat session
+# BusTracker — Handoff
+> Read at the start of every session
 
-## What is this project?
-A school bus tracking system with:
-- **Mobile app** (Expo/React Native) — parents, students, drivers
-- **Web admin** (React + Vite) — manage buses, routes, users
-- **Backend** (Node.js + Express + Socket.IO + Prisma)
-- **Database** (PostgreSQL via Docker)
-- **Simulators** — mock GPS + NFC for testing without hardware
-- **Arduino sketches** — GPS tracker + NFC attendance (hardware pending)
+## Stack
+Backend: Node.js + Express + Prisma + Socket.IO + PostgreSQL (Docker)
+Mobile: Expo SDK 56 + React Native + Leaflet (WebView)
+Web: React + Vite + react-leaflet | Maps: OpenStreetMap + CARTO (free, no key)
+Auth: JWT 7d | Validation: Zod on all backend routes
 
-## How to start everything
+## Start
 ```powershell
-# Terminal 1 — Database
-docker-compose up -d
-
-# Terminal 2 — Backend
-cd backend && npm run dev         # → http://localhost:3000
-
-# Terminal 3 — Web Admin
-cd web && npm run dev             # → http://localhost:5173
-
-# Terminal 4 — Mobile
-cd mobile && npx expo start --clear   # press 'a' for Android emulator
+docker-compose up -d                          # DB :5432
+cd backend && npm run dev                     # API :3000
+cd web && npm run dev                         # Admin :5173
+cd mobile && npx expo start --clear           # press 'a' for Android
+cd simulator && node gps-simulator.js         # mock GPS
+cd simulator && node nfc-simulator.js         # mock NFC
 ```
 
 ## Test accounts
-| Role    | Email                | Password  |
-|---------|----------------------|-----------|
-| ADMIN   | admin@school.com     | admin123  |
-| DRIVER  | driver@school.com    | driver123 |
-| PARENT  | parent@school.com    | parent123 |
-| STUDENT | student@school.com   | student123|
+| Role    | Email                | Password   |
+|---------|----------------------|------------|
+| ADMIN   | admin@school.com     | admin123   |
+| DRIVER  | driver@school.com    | driver123  |
+| PARENT  | parent@school.com    | parent123  |
+| STUDENT | student@school.com   | student123 |
 
-## Key IDs (from DB)
-- Bus ID: `cmpz44rar000bkmv7olehpymn` (BUS-001)
+Bus ID: `cmpz44rar000bkmv7olehpymn` (BUS-001)
 
-## Run simulators (test without hardware)
-```powershell
-# GPS — moves bus along route on map
-cd simulator && node gps-simulator.js
-
-# NFC — type card UIDs to simulate student tap
-cd simulator && node nfc-simulator.js
+## Structure
+```
+backend/src/  controllers/ routes/ middleware/ services/
+mobile/src/   screens/ components/ services/ navigation/ context/
+web/src/      pages/ components/ context/
+simulator/    gps-simulator.js  nfc-simulator.js
+arduino/      gps_tracker/  nfc_attendance/
 ```
 
-## Tech stack
-- Backend: Node.js + Express + Prisma + Socket.IO + PostgreSQL
-- Mobile: Expo SDK 56 + React Native + react-native-webview (Leaflet maps)
-- Web: React + Vite + Leaflet (react-leaflet)
-- Maps: OpenStreetMap + CARTO tiles (FREE, no API key)
-- Auth: JWT (7 day expiry, auto-logout on 401)
+## What's done
+- Full API + Socket.IO (GPS broadcast, NFC attendance, live map)
+- All mobile screens: Home, BusTracking (ETA per stop), Driver, Attendance, Profile
+- Web admin: Buses, Routes, Users, Attendance, Live Map
+- Zod validation on all backend mutating endpoints
+- ETA per stop — haversine + nearest-stop, updates live from socket speed
+- Push notifications — Alert.alert fallback in Expo Go; eas.json + expo-dev-client ready for dev build
+- Arduino sketches ready (ESP32 + NEO-6M GPS, ESP32 + RC522 NFC) — hardware pending
 
-## Known issues / next steps
-- Push notifications disabled in Expo Go (SDK 53+) — need dev build for real notifications
-- Arduino hardware not yet connected — sketches ready in /arduino folder
-- ETA per stop not built yet
-- Production deployment not done
-
-## Project structure
-```
-bustracker/
-├── backend/         Node.js API + Socket.IO
-├── mobile/          Expo React Native app
-├── web/             React admin dashboard
-├── simulator/       GPS + NFC mock scripts
-├── arduino/         Hardware sketches (pending)
-├── docker-compose.yml
-├── PROJECT_STATUS.md   ← full detailed status
-└── HANDOFF.md          ← this file
-```
-
-## What was last worked on
-- Complete web UI redesign (light theme, Inter font, CARTO maps)
-- Fixed push notifications crash in Expo Go
-- All 6 major bugs fixed (driver assignment, attendance, parent linking etc.)
-- Simulators working and tested
+## Remaining
+- Mobile input validation (Register: no email format/password length; link-child: silent fail)
+- Web Buses form: capacity accepts 0/negative
+- `eas init` + `eas build --profile development` for real push notifications
+- Production deployment (VPS + HTTPS)
+- Arduino: flash + wire when hardware arrives
