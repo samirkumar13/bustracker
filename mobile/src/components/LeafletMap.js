@@ -85,8 +85,8 @@ export default function LeafletMap({ busLocation, stops = [], etaList = [], styl
 
     var busIcon = L.divIcon({
       className: '',
-      html: '<div style="position:relative;width:36px;height:36px;"><div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(255,138,61,0.3);animation:pulse 1.6s ease-out infinite;"></div><div style="position:relative;background:#FF8A3D;width:36px;height:36px;border-radius:50%;border:3px solid white;box-shadow:0 4px 12px rgba(232,112,42,0.45);display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:50%;background:white;"></div></div></div>',
-      iconSize: [36, 36], iconAnchor: [18, 18],
+      html: '<div style="position:relative;width:40px;height:40px;"><div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(255,138,61,0.3);animation:pulse 1.6s ease-out infinite;"></div><div style="position:relative;background:#FF8A3D;width:40px;height:40px;border-radius:50%;border:3px solid white;box-shadow:0 4px 12px rgba(232,112,42,0.45);display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;">🚌</div></div>',
+      iconSize: [40, 40], iconAnchor: [20, 20],
     });
 
     function makeStopIcon(status) {
@@ -121,6 +121,13 @@ export default function LeafletMap({ busLocation, stops = [], etaList = [], styl
       return '<b>Stop ' + (index + 1) + ' — ' + name + '</b>' + label;
     }
 
+    function drawFallbackLine(coords) {
+      if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+      routeLine = L.polyline(coords, {
+        color: '#FF8A3D', weight: 4, opacity: 0.85, dashArray: '8,6', lineCap: 'round',
+      }).addTo(map);
+    }
+
     function updateStops(stops) {
       stopLayer.clearLayers();
       stopMarkers = [];
@@ -135,26 +142,41 @@ export default function LeafletMap({ busLocation, stops = [], etaList = [], styl
         stopMarkers.push(marker);
       });
 
-      if (coords.length > 1) {
-        routeLine = L.polyline(coords, {
-          color: '#FF8A3D', weight: 4, opacity: 0.85, dashArray: '8,6', lineCap: 'round',
-        }).addTo(map);
-      }
-
       if (coords.length > 0) {
         var bounds = L.latLngBounds(coords);
         if (busMarker) bounds.extend(busMarker.getLatLng());
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      }
+
+      if (coords.length > 1) {
+        // Fetch real road path from OSRM
+        var waypoints = stops.map(function(s) { return s.lng + ',' + s.lat; }).join(';');
+        fetch('https://router.project-osrm.org/route/v1/driving/' + waypoints + '?overview=full&geometries=geojson')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+            if (data.code === 'Ok') {
+              // OSRM returns [lng, lat] — flip to [lat, lng] for Leaflet
+              var roadCoords = data.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
+              routeLine = L.polyline(roadCoords, {
+                color: '#FF8A3D', weight: 4, opacity: 0.9, lineCap: 'round', lineJoin: 'round',
+              }).addTo(map);
+            } else {
+              drawFallbackLine(coords);
+            }
+          })
+          .catch(function() { drawFallbackLine(coords); });
       }
     }
 
     function updateBus(lat, lng) {
       if (!busMarker) {
         busMarker = L.marker([lat, lng], { icon: busIcon }).addTo(map).bindPopup('<b>Bus</b><br/>Live tracking');
+        // Only set view on first placement — never again, let user control the map
+        map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
       } else {
         busMarker.setLatLng([lat, lng]);
       }
-      map.panTo([lat, lng], { animate: true, duration: 0.4 });
     }
 
     function updateEtas(etaList) {

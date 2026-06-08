@@ -18,18 +18,15 @@ export default function AttendanceScreen() {
 
   async function load() {
     try {
-      let endpoint;
-      if (user.role === 'STUDENT') {
-        endpoint = `/attendance/student/${user.id}`;
-      } else if (user.role === 'PARENT') {
-        const { data: children } = await api.get('/users/my-children');
-        if (!children.length) { setLoading(false); setRefreshing(false); return; }
-        endpoint = `/attendance/student/${children[0].userId}`;
-      } else {
-        setLoading(false); return;
-      }
-      const { data } = await api.get(endpoint);
-      setRecords(data);
+      if (user.role !== 'PARENT') { setLoading(false); setRefreshing(false); return; }
+      const { data: children } = await api.get('/users/my-children');
+      if (!children.length) { setRecords([]); setLoading(false); setRefreshing(false); return; }
+      // Aggregate attendance across all linked children
+      const lists = await Promise.all(
+        children.map((c) => api.get(`/attendance/student/${c.id}`).then((r) => r.data).catch(() => []))
+      );
+      const merged = lists.flat().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setRecords(merged);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }

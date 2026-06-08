@@ -18,7 +18,7 @@ router.post('/scan', validate(s.nfcScan), async (req, res) => {
   try {
     const student = await prisma.student.findUnique({
       where: { nfcCardId },
-      include: { user: true, parent: { include: { user: true } } },
+      include: { parent: { include: { user: true } } },
     });
 
     if (!student) return res.status(404).json({ error: 'Student card not registered' });
@@ -38,14 +38,23 @@ router.post('/scan', validate(s.nfcScan), async (req, res) => {
     // Emit to parent's userId room (parent listens on their own userId)
     const parentUserId = student.parent?.userId;
     req.io.emit(`attendance:${parentUserId}`, {
-      studentName: student.user.name,
+      studentName: student.name,
       status,
       busId,
       timestamp: attendance.timestamp,
     });
 
-    console.log(`NFC: ${student.user.name} ${status} bus ${busId}`);
-    res.json({ student: student.user.name, status, timestamp: attendance.timestamp });
+    // Broadcast to admin attendance page (real-time table update)
+    req.io.emit('attendance:new', {
+      id: attendance.id,
+      busId,
+      status,
+      timestamp: attendance.timestamp,
+      student: { name: student.name },
+    });
+
+    console.log(`NFC: ${student.name} ${status} bus ${busId}`);
+    res.json({ student: student.name, status, timestamp: attendance.timestamp });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -79,23 +88,17 @@ router.get('/bus/:busId', authenticate, async (req, res) => {
 
   const records = await prisma.attendance.findMany({
     where: { busId: req.params.busId, timestamp: { gte: today } },
-    include: { student: { include: { user: { select: { name: true } } } } },
+    include: { student: { select: { name: true } } },
     orderBy: { timestamp: 'desc' },
   });
   res.json(records);
 });
 
-// ── Get attendance by userId (looks up student profile first) ─────────────────
-router.get('/student/:userId', authenticate, async (req, res) => {
+// ── Get attendance for a student record ───────────────────────────────────────
+router.get('/student/:studentId', authenticate, async (req, res) => {
   try {
-    // Accept either a studentId or a userId
-    const student = await prisma.student.findFirst({
-      where: { OR: [{ id: req.params.userId }, { userId: req.params.userId }] },
-    });
-    if (!student) return res.json([]);
-
     const records = await prisma.attendance.findMany({
-      where: { studentId: student.id },
+      where: { studentId: req.params.studentId },
       include: { bus: { select: { plateNumber: true } } },
       orderBy: { timestamp: 'desc' },
       take: 50,
@@ -111,7 +114,7 @@ router.post('/assign-card', authenticate, authorize('ADMIN'), validate(s.assignC
   const { studentId, nfcCardId } = req.body;
   try {
     const student = await prisma.student.update({
-      where: { id: studentId },
+      where: { id: studentId },        // studentId is the Student record id
       data: { nfcCardId },
     });
     res.json({ ok: true, student });

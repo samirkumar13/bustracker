@@ -21,7 +21,7 @@ const http = require('http');
 const SERVER_HOST  = 'localhost';
 const SERVER_PORT  = 3000;
 const DEVICE_KEY   = 'arduino-secret-key-123';
-const BUS_ID       = process.env.BUS_ID || 'cmpz44rar000bkmv7olehpymn';
+const BUS_ID       = process.env.BUS_ID || 'cmq54xe0t000c1y53ktui1dud';
 
 const STEP_INTERVAL = 2000;  // ms between each GPS ping
 const STEPS         = 10;    // interpolation steps between stops (smoothness)

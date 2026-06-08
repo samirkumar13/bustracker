@@ -1,16 +1,29 @@
-# React + Vite
+# BusTracker — Web Admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite admin dashboard for the BusTracker school bus tracking system.
 
-Currently, two official plugins are available:
+## Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev     # http://localhost:5173
+```
 
-## React Compiler
+Requires backend running at `http://localhost:3000`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Pages
 
-## Expanding the ESLint configuration
+| Route       | Description                                              |
+|-------------|----------------------------------------------------------|
+| `/`         | Dashboard — summary cards                                |
+| `/buses`    | Bus management — create, assign driver + route           |
+| `/routes`   | Route builder — click map to place stops                 |
+| `/users`    | User list — view and delete accounts                     |
+| `/students` | Student CRUD — NFC card, route/stop, copy student code   |
+| `/attendance` | Live attendance feed (Socket.IO)                       |
+| `/live`     | Live map — all buses with real-road OSRM routing         |
+| `/audit`    | Audit log — colour-coded table of all admin actions      |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Login
+
+Default admin: `admin@school.com` / `admin123`

@@ -38,9 +38,27 @@ export default function Routes() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [expandedRoute, setExpandedRoute] = useState(null);
+  const [routeCoords, setRouteCoords] = useState([]);
 
   async function load() { const { data } = await api.get('/routes'); setRoutes(data); }
   useEffect(() => { load(); }, []);
+
+  // Fetch real road path from OSRM whenever stops change
+  useEffect(() => {
+    if (form.stops.length < 2) { setRouteCoords([]); return; }
+    const waypoints = form.stops.map(s => `${s.lng},${s.lat}`).join(';');
+    fetch(`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.code === 'Ok') {
+          // OSRM returns [lng, lat] — flip to [lat, lng] for Leaflet
+          setRouteCoords(data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        } else {
+          setRouteCoords(form.stops.map(s => [s.lat, s.lng]));
+        }
+      })
+      .catch(() => setRouteCoords(form.stops.map(s => [s.lat, s.lng])));
+  }, [form.stops]);
 
   function handleMapClick({ lat, lng }) {
     const name = pendingStop.trim() || `Stop ${form.stops.length + 1}`;
@@ -113,8 +131,11 @@ export default function Routes() {
                   <Popup><b>Stop {i + 1}</b><br />{stop.name}<br /><small>{stop.lat}, {stop.lng}</small></Popup>
                 </Marker>
               ))}
-              {form.stops.length > 1 && (
-                <Polyline positions={form.stops.map(s => [s.lat, s.lng])} color="#6366f1" weight={3} opacity={0.7} dashArray="8,4" />
+              {routeCoords.length > 1 && (
+                <Polyline positions={routeCoords} color="#6366f1" weight={4} opacity={0.85} />
+              )}
+              {form.stops.length > 1 && routeCoords.length < 2 && (
+                <Polyline positions={form.stops.map(s => [s.lat, s.lng])} color="#6366f1" weight={3} opacity={0.5} dashArray="8,4" />
               )}
             </MapContainer>
           </div>

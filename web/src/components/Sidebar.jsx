@@ -6,8 +6,10 @@ const links = [
   { to: '/buses',      icon: '⬡', label: 'Buses' },
   { to: '/routes',     icon: '◎', label: 'Routes' },
   { to: '/users',      icon: '⊕', label: 'Users' },
+  { to: '/students',   icon: '◐', label: 'Students' },
   { to: '/attendance', icon: '✦', label: 'Attendance' },
   { to: '/live',       icon: '◉', label: 'Live Map' },
+  { to: '/audit',      icon: '⊞', label: 'Audit Log' },
 ];
 
 export default function Sidebar() {
@@ -45,8 +47,9 @@ export default function Sidebar() {
 
 const s = {
   sidebar: {
-    width: 240, minHeight: '100vh', background: '#fff', borderRight: '1px solid var(--border)',
+    width: 240, height: '100vh', background: '#fff', borderRight: '1px solid var(--border)',
     display: 'flex', flexDirection: 'column', padding: '0 0 16px', position: 'sticky', top: 0, flexShrink: 0,
+    overflowY: 'auto',
   },
   brand: { display: 'flex', alignItems: 'center', gap: 10, padding: '20px 18px 16px' },
   logo: { width: 34, height: 34, background: 'var(--accent-bg)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' },
@@ -54,7 +57,7 @@ const s = {
   brandName: { fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' },
   brandSub: { fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginTop: -1 },
   divider: { height: 1, background: 'var(--border)', margin: '0 16px' },
-  nav: { flex: 1, padding: '12px 10px' },
+  nav: { flex: 1, padding: '12px 10px', overflowY: 'auto' },
   navLabel: { fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '1.2px', padding: '0 8px', marginBottom: 6 },
   link: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', color: 'var(--text-secondary)',

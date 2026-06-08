@@ -17,7 +17,7 @@ const readline = require('readline');
 const SERVER_HOST = 'localhost';
 const SERVER_PORT = 3000;
 const DEVICE_KEY  = 'arduino-secret-key-123';
-const BUS_ID      = process.env.BUS_ID || 'cmpz44rar000bkmv7olehpymn';
+const BUS_ID      = process.env.BUS_ID || 'cmq54xe0t000c1y53ktui1dud';
 
 function postScan(nfcCardId) {
   const body = JSON.stringify({ nfcCardId, busId: BUS_ID, deviceKey: DEVICE_KEY });

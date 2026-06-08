@@ -11,7 +11,6 @@ enum Role {
   ADMIN
   DRIVER
   PARENT
-  STUDENT
 }
 
 enum AttendanceStatus {
@@ -31,7 +30,6 @@ model User {
 
   driver    Driver?
   parent    Parent?
-  student   Student?
 }
 
 model School {
@@ -41,8 +39,9 @@ model School {
   lat     Float
   lng     Float
 
-  routes  Route[]
-  buses   Bus[]
+  routes   Route[]
+  buses    Bus[]
+  students Student[]
 }
 
 model Bus {
@@ -99,15 +98,18 @@ model Parent {
 }
 
 model Student {
-  id        String  @id @default(cuid())
-  userId    String  @unique
-  user      User    @relation(fields: [userId], references: [id])
-  parentId  String?
-  parent    Parent? @relation(fields: [parentId], references: [id])
-  routeId   String?
-  route     Route?  @relation(fields: [routeId], references: [id])
-  stopId    String?
-  stop      Stop?   @relation(fields: [stopId], references: [id])
+  id          String  @id @default(cuid())
+  name        String
+  studentCode String  @unique  // human-friendly code parents use to link (e.g. STU-AB12C)
+  grade       String?
+  schoolId    String
+  school      School  @relation(fields: [schoolId], references: [id])
+  parentId    String?
+  parent      Parent? @relation(fields: [parentId], references: [id])
+  routeId     String?
+  route       Route?  @relation(fields: [routeId], references: [id])
+  stopId      String?
+  stop        Stop?   @relation(fields: [stopId], references: [id])
 
   nfcCardId   String?  @unique  // NFC card UID assigned to student
   attendances Attendance[]
@@ -132,4 +134,20 @@ model Attendance {
   bus       Bus              @relation(fields: [busId], references: [id])
   status    AttendanceStatus
   timestamp DateTime         @default(now())
+}
+
+// Audit log — no FK to User intentionally (logs persist even after user deletion)
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  userName   String
+  action     String   // e.g. STUDENT_CREATED, USER_DELETED
+  targetType String   // e.g. STUDENT, USER, BUS
+  targetId   String?
+  detail     String?  // JSON string with extra context
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }

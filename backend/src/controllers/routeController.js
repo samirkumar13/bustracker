@@ -19,7 +19,7 @@ async function getRoute(req, res) {
       include: {
         stops: { orderBy: { order: 'asc' } },
         bus: { include: { locations: { orderBy: { timestamp: 'desc' }, take: 1 } } },
-        students: { include: { user: { select: { name: true } } } },
+        students: { select: { id: true, name: true } },
       },
     });
     if (!route) return res.status(404).json({ error: 'Route not found' });

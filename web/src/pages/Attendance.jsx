@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { io } from 'socket.io-client';
 import api from '../services/api';
 
 export default function Attendance() {
@@ -6,9 +7,51 @@ export default function Attendance() {
   const [selectedBus, setSelectedBus] = useState('');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [live, setLive] = useState(false);
+  const [newScanIds, setNewScanIds] = useState(new Set());
+  const socketRef = useRef(null);
+  const selectedBusRef = useRef(selectedBus);
 
-  useEffect(() => { api.get('/buses').then(({ data }) => { setBuses(data); if (data[0]) setSelectedBus(data[0].id); }); }, []);
+  // Keep ref in sync so socket callback always sees latest selectedBus
+  useEffect(() => { selectedBusRef.current = selectedBus; }, [selectedBus]);
+
+  useEffect(() => {
+    api.get('/buses').then(({ data }) => {
+      setBuses(data);
+      if (data[0]) setSelectedBus(data[0].id);
+    });
+  }, []);
+
   useEffect(() => { if (selectedBus) loadRecords(); }, [selectedBus]);
+
+  // Socket.IO — connect once, listen for new scans
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    socketRef.current = io('http://localhost:3000', { auth: { token } });
+
+    socketRef.current.on('connect', () => setLive(true));
+    socketRef.current.on('disconnect', () => setLive(false));
+
+    socketRef.current.on('attendance:new', (record) => {
+      // Only prepend if it matches the currently viewed bus
+      if (record.busId !== selectedBusRef.current) return;
+      setRecords(prev => [record, ...prev]);
+      // Flash highlight: mark this id as "new" then clear after 3s
+      setNewScanIds(prev => new Set([...prev, record.id]));
+      setTimeout(() => {
+        setNewScanIds(prev => {
+          const next = new Set(prev);
+          next.delete(record.id);
+          return next;
+        });
+      }, 3000);
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+      setLive(false);
+    };
+  }, []);
 
   async function loadRecords() {
     setLoading(true);
@@ -18,8 +61,8 @@ export default function Attendance() {
   }
 
   const boarded = records.filter(r => r.status === 'BOARDED').length;
-  const exited = records.filter(r => r.status === 'EXITED').length;
-  const onBus = boarded - exited;
+  const exited  = records.filter(r => r.status === 'EXITED').length;
+  const onBus   = Math.max(0, boarded - exited);
 
   return (
     <div style={s.page}>
@@ -29,6 +72,7 @@ export default function Attendance() {
           <p style={s.subtitle}>NFC scan log — student check-in/out tracking</p>
         </div>
         <div style={s.controls}>
+          {live && <span style={s.liveBadge}>● Live</span>}
           <select style={s.select} value={selectedBus} onChange={e => setSelectedBus(e.target.value)}>
             {buses.map(b => <option key={b.id} value={b.id}>{b.plateNumber}</option>)}
           </select>
@@ -55,7 +99,7 @@ export default function Attendance() {
         <div style={s.statCard}>
           <div style={{ ...s.statDot, background: 'var(--accent)' }} />
           <div>
-            <div style={s.statValue}>{Math.max(0, onBus)}</div>
+            <div style={s.statValue}>{onBus}</div>
             <div style={s.statLabel}>On Bus Now</div>
           </div>
         </div>
@@ -87,11 +131,11 @@ export default function Attendance() {
             </thead>
             <tbody>
               {records.map(r => (
-                <tr key={r.id} style={s.tr}>
+                <tr key={r.id} style={newScanIds.has(r.id) ? { ...s.tr, ...s.trNew } : s.tr}>
                   <td style={s.td}>
                     <div style={s.studentCell}>
-                      <div style={s.avatar}>{r.student?.user?.name?.[0] || '?'}</div>
-                      <span style={s.studentName}>{r.student?.user?.name}</span>
+                      <div style={s.avatar}>{r.student?.name?.[0] || '?'}</div>
+                      <span style={s.studentName}>{r.student?.name}</span>
                     </div>
                   </td>
                   <td style={s.td}>
@@ -117,7 +161,16 @@ const s = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px', marginBottom: 4 },
   subtitle: { color: 'var(--text-muted)', fontSize: 14 },
-  controls: { display: 'flex', gap: 8 },
+  controls: { display: 'flex', gap: 8, alignItems: 'center' },
+  liveBadge: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#22c55e',
+    background: 'rgba(34,197,94,0.12)',
+    padding: '4px 10px',
+    borderRadius: 20,
+    letterSpacing: '0.5px',
+  },
   select: {
     padding: '8px 14px',
     background: 'var(--bg-input)',
@@ -174,6 +227,7 @@ const s = {
     borderBottom: '1px solid var(--border)',
   },
   tr: { borderBottom: '1px solid var(--border)' },
+  trNew: { background: 'rgba(34,197,94,0.07)', transition: 'background 0.5s' },
   td: { padding: '12px 20px', fontSize: 13 },
   studentCell: { display: 'flex', alignItems: 'center', gap: 10 },
   avatar: {

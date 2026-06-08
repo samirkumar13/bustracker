@@ -15,13 +15,12 @@ async function register(req, res) {
       data: { name, email, password: hashed, role, phone },
     });
 
-    // Create role-specific profile
+    // Create role-specific profile (students are records managed by the school, not login users)
     if (role === 'DRIVER') await prisma.driver.create({ data: { userId: user.id } });
     if (role === 'PARENT') await prisma.parent.create({ data: { userId: user.id } });
-    if (role === 'STUDENT') await prisma.student.create({ data: { userId: user.id } });
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, name: user.name, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -42,7 +41,7 @@ async function login(req, res) {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, name: user.name, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

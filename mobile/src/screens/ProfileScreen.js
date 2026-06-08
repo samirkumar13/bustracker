@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, StyleSheet,
   ScrollView, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import api, { routeAPI } from '../services/api';
+import api from '../services/api';
 import { colors, spacing, font, radius, shadow } from '../theme/theme';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -14,21 +14,16 @@ import Icon from '../components/Icon';
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
 
-  const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [selectedStop, setSelectedStop] = useState(null);
-  const [saving, setSaving] = useState(false);
-
   const [children, setChildren] = useState([]);
-  const [childEmail, setChildEmail] = useState('');
+  const [childCode, setChildCode] = useState('');
   const [linking, setLinking] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
-  const isStudent = user?.role === 'STUDENT';
   const isParent = user?.role === 'PARENT';
 
   useEffect(() => {
-    if (isStudent) routeAPI.getAll().then(({ data }) => setRoutes(data));
     if (isParent) loadChildren();
   }, []);
 
@@ -40,37 +35,28 @@ export default function ProfileScreen() {
   }
 
   async function linkChild() {
-    if (!childEmail.trim()) return;
+    if (!childCode.trim()) return;
     setLinking(true);
     try {
-      const { data } = await api.post('/users/link-child', { studentEmail: childEmail.trim() });
+      const { data } = await api.post('/users/link-child', { studentCode: childCode.trim() });
       Alert.alert('Linked', `${data.studentName} is now linked to your account.`);
-      setChildEmail('');
+      setChildCode('');
       loadChildren();
     } catch (err) {
       Alert.alert('Could not link', err.response?.data?.error || 'Try again.');
     } finally { setLinking(false); }
   }
 
-  async function onRouteSelect(route) {
-    setSelectedRoute(route);
-    setSelectedStop(null);
-    const { data } = await api.get(`/stops/route/${route.id}`);
-    setStops(data);
-  }
-
-  async function saveAssignment() {
-    if (!selectedRoute || !selectedStop) return Alert.alert('Pick both', 'Please select a route and stop.');
-    setSaving(true);
+  async function deleteAccount() {
+    if (!deletePassword.trim()) return;
+    setDeleting(true);
     try {
-      await api.put(`/users/${user.id}/student-assignment`, {
-        routeId: selectedRoute.id,
-        stopId: selectedStop.id,
-      });
-      Alert.alert('Saved', `You're assigned to ${selectedStop.name}.`);
-    } catch {
-      Alert.alert('Error', 'Could not save assignment.');
-    } finally { setSaving(false); }
+      await api.delete('/users/me', { data: { password: deletePassword } });
+      Alert.alert('Account deleted', 'Your account and personal data have been permanently deleted.');
+      logout();
+    } catch (err) {
+      Alert.alert('Could not delete', err.response?.data?.error || 'Try again.');
+    } finally { setDeleting(false); }
   }
 
   function confirmLogout() {
@@ -102,17 +88,17 @@ export default function ProfileScreen() {
             <View style={styles.sectionIcon}><Icon name="users" size={16} color={colors.primaryDeep} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.sectionTitle}>My children</Text>
-              <Text style={styles.sectionSub}>Link your child's account to receive bus alerts.</Text>
+              <Text style={styles.sectionSub}>Link your child with the student code from your school.</Text>
             </View>
           </View>
 
           {children.length > 0 && children.map((c) => (
             <View key={c.id} style={styles.childCard}>
               <View style={styles.childAvatar}>
-                <Text style={styles.childInitial}>{c.user?.name?.[0]?.toUpperCase() ?? '?'}</Text>
+                <Text style={styles.childInitial}>{c.name?.[0]?.toUpperCase() ?? '?'}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.childName}>{c.user.name}</Text>
+                <Text style={styles.childName}>{c.name}</Text>
                 <Text style={styles.childMeta} numberOfLines={1}>
                   {(c.route?.name ?? 'No route')} · {(c.stop?.name ?? 'No stop')}
                 </Text>
@@ -123,72 +109,17 @@ export default function ProfileScreen() {
           <View style={styles.linkRow}>
             <View style={{ flex: 1 }}>
               <Input
-                placeholder="student@email.com"
-                icon="mail"
-                value={childEmail}
-                onChangeText={setChildEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                placeholder="STU-XXXXX"
+                icon="hash"
+                value={childCode}
+                onChangeText={(v) => setChildCode(v.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
                 style={{ marginBottom: 0 }}
               />
             </View>
             <Button label="Link" onPress={linkChild} loading={linking} size="md" icon="link" style={{ marginLeft: 10 }} />
           </View>
-        </Card>
-      )}
-
-      {/* STUDENT: route + stop */}
-      {isStudent && (
-        <Card style={styles.section}>
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionIcon}><Icon name="map-pin" size={16} color={colors.primaryDeep} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>My bus stop</Text>
-              <Text style={styles.sectionSub}>Select your route and pickup stop.</Text>
-            </View>
-          </View>
-
-          <Text style={styles.label}>Route</Text>
-          {routes.map((r) => {
-            const active = selectedRoute?.id === r.id;
-            return (
-              <TouchableOpacity
-                key={r.id}
-                activeOpacity={0.9}
-                style={[styles.option, active && styles.optionActive]}
-                onPress={() => onRouteSelect(r)}
-              >
-                <Icon name="map" size={16} color={active ? colors.primaryDeep : colors.textMuted} />
-                <Text style={[styles.optionText, active && styles.optionTextActive]}>{r.name}</Text>
-                {active && <Icon name="check" size={16} color={colors.primaryDeep} />}
-              </TouchableOpacity>
-            );
-          })}
-
-          {stops.length > 0 && (
-            <>
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>Pickup stop</Text>
-              {stops.map((s) => {
-                const active = selectedStop?.id === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    activeOpacity={0.9}
-                    style={[styles.option, active && styles.optionActive]}
-                    onPress={() => setSelectedStop(s)}
-                  >
-                    <View style={styles.stopNum}><Text style={styles.stopNumText}>{s.order}</Text></View>
-                    <Text style={[styles.optionText, active && styles.optionTextActive]}>{s.name}</Text>
-                    {active && <Icon name="check" size={16} color={colors.primaryDeep} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-
-          {selectedRoute && selectedStop && (
-            <Button label="Save assignment" onPress={saveAssignment} loading={saving} icon="check" style={{ marginTop: spacing.md }} />
-          )}
         </Card>
       )}
 
@@ -198,11 +129,63 @@ export default function ProfileScreen() {
           <View style={styles.sectionIcon}><Icon name="settings" size={16} color={colors.primaryDeep} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>Account</Text>
-            <Text style={styles.sectionSub}>Sign out of this device.</Text>
+            <Text style={styles.sectionSub}>Sign out or manage your data.</Text>
           </View>
         </View>
         <Button label="Log out" onPress={confirmLogout} variant="outlineDanger" icon="log-out" />
       </Card>
+
+      {/* Delete account — parents only */}
+      {isParent && (
+        <Card style={[styles.section, styles.deleteCard]}>
+          <View style={styles.sectionHead}>
+            <View style={[styles.sectionIcon, { backgroundColor: colors.dangerSoft }]}>
+              <Icon name="trash-2" size={16} color={colors.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Delete account</Text>
+              <Text style={styles.sectionSub}>Permanently removes your account and personal data. Your children will be unlinked but remain in the school system.</Text>
+            </View>
+          </View>
+
+          {!showDeleteConfirm ? (
+            <Button
+              label="Delete my account"
+              onPress={() => setShowDeleteConfirm(true)}
+              variant="outlineDanger"
+              icon="trash-2"
+            />
+          ) : (
+            <View>
+              <Text style={styles.deleteWarning}>⚠ This cannot be undone. Enter your password to confirm.</Text>
+              <Input
+                placeholder="Your password"
+                icon="lock"
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                secureTextEntry
+                style={{ marginBottom: 10 }}
+              />
+              <View style={styles.deleteActions}>
+                <Button
+                  label="Cancel"
+                  onPress={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}
+                  variant="outline"
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  label="Delete"
+                  onPress={deleteAccount}
+                  loading={deleting}
+                  variant="danger"
+                  icon="trash-2"
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </View>
+          )}
+        </Card>
+      )}
     </ScrollView>
   );
 }
@@ -231,6 +214,10 @@ const styles = StyleSheet.create({
   childMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   linkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+
+  deleteCard: { marginTop: spacing.lg, borderWidth: 1, borderColor: colors.dangerSoft },
+  deleteWarning: { fontSize: 12, color: colors.danger, marginBottom: 10, fontWeight: '600' },
+  deleteActions: { flexDirection: 'row' },
 
   option: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.hairline, marginBottom: 8, backgroundColor: colors.surface, gap: 10 },
   optionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { io } from 'socket.io-client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -28,6 +28,7 @@ export default function LiveMap() {
   const [buses, setBuses] = useState([]);
   const [locations, setLocations] = useState({});
   const [activeBuses, setActiveBuses] = useState(new Set());
+  const [routeLines, setRouteLines] = useState({});
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -55,6 +56,22 @@ export default function LiveMap() {
         socketRef.current.emit('track:bus', { busId: b.id });
       });
       setLocations(locs);
+
+      // Fetch real road paths from OSRM for each bus route
+      data.forEach(bus => {
+        const stops = bus.route?.stops ?? [];
+        if (stops.length < 2) return;
+        const waypoints = stops.map(s => `${s.lng},${s.lat}`).join(';');
+        fetch(`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`)
+          .then(r => r.json())
+          .then(d => {
+            if (d.code === 'Ok') {
+              const coords = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+              setRouteLines(prev => ({ ...prev, [bus.id]: coords }));
+            }
+          })
+          .catch(() => {});
+      });
     });
 
     return () => socketRef.current?.disconnect();
@@ -76,14 +93,16 @@ export default function LiveMap() {
       </div>
 
       <div style={s.mapWrap}>
-        <MapContainer center={[18.5204, 73.8567]} zoom={11} style={{ height: '100%', width: '100%' }}>
+        <MapContainer center={[20, 78]} zoom={5} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             attribution='&copy; OSM &copy; CARTO'
           />
+          <FitBounds buses={buses} locations={locations} />
           {buses.map(bus => {
             const loc = locations[bus.id];
             const stops = bus.route?.stops ?? [];
+            const roadCoords = routeLines[bus.id];
             return (
               <span key={bus.id}>
                 {loc && (
@@ -102,14 +121,12 @@ export default function LiveMap() {
                     <Popup><b>{stop.name}</b></Popup>
                   </Marker>
                 ))}
-                {stops.length > 1 && (
-                  <Polyline
-                    positions={stops.map(s => [s.lat, s.lng])}
-                    color="#6366f1"
-                    weight={2}
-                    opacity={0.4}
-                    dashArray="6,4"
-                  />
+                {/* Road path from OSRM, fallback to straight line */}
+                {roadCoords?.length > 1 && (
+                  <Polyline positions={roadCoords} color="#6366f1" weight={3} opacity={0.7} />
+                )}
+                {!roadCoords && stops.length > 1 && (
+                  <Polyline positions={stops.map(s => [s.lat, s.lng])} color="#6366f1" weight={2} opacity={0.4} dashArray="6,4" />
                 )}
               </span>
             );
@@ -118,6 +135,26 @@ export default function LiveMap() {
       </div>
     </div>
   );
+}
+
+// Fits map to all buses + stops once on load, never again (no jitter)
+function FitBounds({ buses, locations }) {
+  const map = useMap();
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (fitted.current || !buses.length) return;
+    const points = [];
+    buses.forEach(bus => {
+      const loc = locations[bus.id];
+      if (loc) points.push([loc.lat, loc.lng]);
+      bus.route?.stops?.forEach(s => points.push([s.lat, s.lng]));
+    });
+    if (points.length > 0) {
+      map.fitBounds(L.latLngBounds(points), { padding: [50, 50], maxZoom: 15 });
+      fitted.current = true;
+    }
+  }, [buses, locations]);
+  return null;
 }
 
 const s = {

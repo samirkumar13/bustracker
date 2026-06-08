@@ -8,9 +8,12 @@ const authRoutes = require('./routes/auth');
 const busRoutes = require('./routes/buses');
 const routeRoutes = require('./routes/routes');
 const userRoutes = require('./routes/users');
+const studentRoutes = require('./routes/students');
 const stopRoutes = require('./routes/stops');
 const attendanceRoutes = require('./routes/attendance');
 const { setupSocketHandlers } = require('./services/socketService');
+const { startGpsCleanupJob } = require('./jobs/cleanupGpsData');
+const auditLogRoutes = require('./routes/auditLogs');
 
 const app = express();
 const httpServer = createServer(app);
@@ -29,12 +32,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/buses', busRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/students', studentRoutes);
 app.use('/api/stops', stopRoutes);
 app.use('/api/attendance', attendanceRoutes);
 
+app.use('/api/audit-logs', auditLogRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 setupSocketHandlers(io);
+startGpsCleanupJob();
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -6,8 +6,10 @@ import Dashboard from './pages/Dashboard';
 import Buses from './pages/Buses';
 import Routes_ from './pages/Routes';
 import Users from './pages/Users';
+import Students from './pages/Students';
 import Attendance from './pages/Attendance';
 import LiveMap from './pages/LiveMap';
+import AuditLog from './pages/AuditLog';
 import './App.css';
 
 function Layout() {
@@ -20,8 +22,10 @@ function Layout() {
           <Route path="/buses" element={<Buses />} />
           <Route path="/routes" element={<Routes_ />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/students" element={<Students />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/live" element={<LiveMap />} />
+          <Route path="/audit" element={<AuditLog />} />
         </Routes>
       </main>
     </div>

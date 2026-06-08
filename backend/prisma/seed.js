@@ -41,13 +41,7 @@ async function main() {
     create: { name: 'Mary Parent', email: 'parent@school.com', password: hash('parent123'), role: 'PARENT', phone: '555-0102' },
   });
 
-  const studentUser = await prisma.user.upsert({
-    where: { email: 'student@school.com' },
-    update: {},
-    create: { name: 'Alex Student', email: 'student@school.com', password: hash('student123'), role: 'STUDENT' },
-  });
-
-  console.log('✅ Users created: admin, driver, parent, student');
+  console.log('✅ Users created: admin, driver, parent');
 
   // ── Role profiles ────────────────────────────────────────
   const driver = await prisma.driver.upsert({
@@ -62,10 +56,28 @@ async function main() {
     create: { userId: parentUser.id },
   });
 
+  // ── Student records (no login — managed by the school, linked to parent) ─────
   const student = await prisma.student.upsert({
-    where: { userId: studentUser.id },
-    update: {},
-    create: { userId: studentUser.id, parentId: parent.id },
+    where: { studentCode: 'STU-DEMO1' },
+    update: { name: 'Alex Kumar', schoolId: school.id, parentId: parent.id },
+    create: {
+      name: 'Alex Kumar',
+      studentCode: 'STU-DEMO1',
+      grade: 'Grade 5',
+      schoolId: school.id,
+      parentId: parent.id,
+    },
+  });
+
+  await prisma.student.upsert({
+    where: { studentCode: 'STU-DEMO2' },
+    update: { name: 'Priya Sharma', schoolId: school.id },
+    create: {
+      name: 'Priya Sharma',
+      studentCode: 'STU-DEMO2',
+      grade: 'Grade 4',
+      schoolId: school.id,
+    },
   });
 
   // ── Bus ──────────────────────────────────────────────────
@@ -114,22 +126,25 @@ async function main() {
 
   console.log('✅ Route created: Morning Route A with 4 stops');
 
-  // Assign student to route + first stop
+  // Assign demo student to route + first stop
   await prisma.student.update({
     where: { id: student.id },
     data: { routeId: route.id, stopId: route.stops[0].id },
   });
 
-  console.log('✅ Student assigned to route and stop');
+  console.log('✅ Student "Alex Kumar" assigned to route and stop');
 
   // ── Summary ──────────────────────────────────────────────
   console.log('\n🎉 Seed complete! Test accounts:\n');
-  console.log('  Role     | Email                | Password');
-  console.log('  ---------|----------------------|----------');
-  console.log('  ADMIN    | admin@school.com     | admin123');
-  console.log('  DRIVER   | driver@school.com    | driver123');
-  console.log('  PARENT   | parent@school.com    | parent123');
-  console.log('  STUDENT  | student@school.com   | student123');
+  console.log('  Role    | Email             | Password');
+  console.log('  --------|-------------------|----------');
+  console.log('  ADMIN   | admin@school.com  | admin123');
+  console.log('  DRIVER  | driver@school.com | driver123');
+  console.log('  PARENT  | parent@school.com | parent123');
+  console.log('');
+  console.log('  Students are records (no login). Parent links them by code:');
+  console.log('    STU-DEMO1  → Alex Kumar  (already linked to parent@school.com)');
+  console.log('    STU-DEMO2  → Priya Sharma (unlinked — try linking in the app)');
   console.log('');
 }
 

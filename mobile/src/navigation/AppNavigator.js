@@ -62,14 +62,43 @@ function ParentStudentTabs() {
     let socket;
     (async () => {
       socket = await connectSocket();
+
+      // Attendance alerts
       socket.on(`attendance:${user.id}`, (event) => {
         showLocalNotification(
-          event.status === 'BOARDED' ? 'Child boarded bus' : 'Child exited bus',
+          event.status === 'BOARDED' ? '✅ Child boarded bus' : '🔔 Child exited bus',
           `${event.studentName} ${event.status === 'BOARDED' ? 'boarded' : 'exited'} the bus`
         );
       });
+
+      // Geofence alerts — bus approaching child's stop
+      socket.on('geofence:alert', ({ stopName, studentName, busPlate, etaMin, distanceM }) => {
+        const eta =
+          etaMin === 0
+            ? 'Arriving now! 🚨'
+            : `~${etaMin} min away (${distanceM}m)`;
+        showLocalNotification(
+          `🚌 Bus approaching ${stopName}`,
+          `${studentName}'s bus ${busPlate} is ${eta}`
+        );
+      });
+
+      // Admin broadcast — delay / info / emergency alerts
+      socket.on('admin:broadcast', ({ busPlate, routeName, message, type }) => {
+        const icon =
+          type === 'EMERGENCY' ? '🚨' :
+          type === 'DELAY'     ? '🕐' : 'ℹ️';
+        showLocalNotification(
+          `${icon} ${type} — ${busPlate}`,
+          message
+        );
+      });
     })();
-    return () => socket?.off(`attendance:${user.id}`);
+    return () => {
+      socket?.off(`attendance:${user.id}`);
+      socket?.off('geofence:alert');
+      socket?.off('admin:broadcast');
+    };
   }, []);
 
   return (

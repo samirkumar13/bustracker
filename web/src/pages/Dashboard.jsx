@@ -55,7 +55,7 @@ export default function Dashboard() {
             {[
               { icon: '⬡', label: 'Add Bus', desc: 'Register a new school bus', path: '/buses' },
               { icon: '◎', label: 'Create Route', desc: 'Set up a new bus route', path: '/routes' },
-              { icon: '⊕', label: 'Manage Users', desc: 'Add users & assign NFC cards', path: '/users' },
+              { icon: '◐', label: 'Manage Students', desc: 'Add students & assign NFC cards', path: '/students' },
               { icon: '◉', label: 'Live Map', desc: 'Track all buses in real-time', path: '/live' },
             ].map(a => (
               <a key={a.label} href={a.path} style={s.action}>

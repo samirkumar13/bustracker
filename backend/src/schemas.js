@@ -6,7 +6,7 @@ const register = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['ADMIN', 'DRIVER', 'PARENT', 'STUDENT'], { message: 'Invalid role' }),
+  role: z.enum(['ADMIN', 'DRIVER', 'PARENT'], { message: 'Invalid role' }),
   phone: z.string().optional(),
 });
 
@@ -73,24 +73,47 @@ const gpsUpdate = z.object({
 });
 
 const assignCard = z.object({
-  studentId: id,
+  studentId: id,                       // Student record id
   nfcCardId: z.string().min(1, 'NFC card ID is required'),
 });
 
 const linkChild = z.object({
-  studentEmail: z.string().email('Invalid student email'),
+  studentCode: z.string().min(1, 'Student code is required'),
 });
 
-const studentAssignment = z.object({
+// ── Student records (managed by school admin) ────────────────────────────────
+const createStudent = z.object({
+  name: z.string().min(1, 'Student name is required'),
+  grade: z.string().optional(),
   routeId: z.string().nullable().optional(),
   stopId: z.string().nullable().optional(),
+  nfcCardId: z.string().optional(),
+});
+
+const updateStudent = z.object({
+  name: z.string().min(1).optional(),
+  grade: z.string().nullable().optional(),
+  routeId: z.string().nullable().optional(),
+  stopId: z.string().nullable().optional(),
+  nfcCardId: z.string().nullable().optional(),
+});
+
+const deleteAccount = z.object({
+  password: z.string().min(1, 'Password is required to confirm deletion'),
+});
+
+const broadcast = z.object({
+  message: z.string().min(1, 'Message is required').max(280, 'Max 280 characters'),
+  type: z.enum(['DELAY', 'INFO', 'EMERGENCY']).default('INFO'),
 });
 
 module.exports = {
   register, login,
-  createBus, updateBus,
+  createBus, updateBus, broadcast,
   createRoute, updateRoute,
   createStop, updateStop,
   nfcScan, gpsUpdate, assignCard,
-  linkChild, studentAssignment,
+  linkChild,
+  createStudent, updateStudent,
+  deleteAccount,
 };

@@ -18,7 +18,15 @@
       "Bash(cmd //c \"taskkill /PID 12504 /F\")",
       "Bash(node backend/node_modules/.bin/prisma studio --browser none)",
       "Bash(kill %1)",
-      "Bash(node -e \"const fs=require\\('fs'\\);const files=['screens/HomeScreen.js','screens/LoginScreen.js','screens/RegisterScreen.js','screens/BusTrackingScreen.js','screens/DriverScreen.js','screens/ProfileScreen.js','screens/AttendanceScreen.js','navigation/AppNavigator.js'];files.forEach\\(f=>{const t=fs.readFileSync\\(f,'utf8'\\);const emoji=t.match\\(/[\\\\u{1F300}-\\\\u{1FAFF}\\\\u{2600}-\\\\u{27BF}]/gu\\);if\\(emoji\\)console.log\\(f,'EMOJI:',emoji.join\\(' '\\)\\);}\\);console.log\\('done'\\);\")"
+      "Bash(node -e \"const fs=require\\('fs'\\);const files=['screens/HomeScreen.js','screens/LoginScreen.js','screens/RegisterScreen.js','screens/BusTrackingScreen.js','screens/DriverScreen.js','screens/ProfileScreen.js','screens/AttendanceScreen.js','navigation/AppNavigator.js'];files.forEach\\(f=>{const t=fs.readFileSync\\(f,'utf8'\\);const emoji=t.match\\(/[\\\\u{1F300}-\\\\u{1FAFF}\\\\u{2600}-\\\\u{27BF}]/gu\\);if\\(emoji\\)console.log\\(f,'EMOJI:',emoji.join\\(' '\\)\\);}\\);console.log\\('done'\\);\")",
+      "PowerShell(Stop-Process -Id 17412,11224 -Force -ErrorAction SilentlyContinue)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@school.com\",\"password\":\"admin123\"}')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const s=JSON.parse\\(d\\);console.log\\(s.map\\(x=>\\({name:x.name,code:x.studentCode,parent:x.parent?.user?.name||null,route:x.route?.name||null,nfc:x.nfcCardId}\\)\\)\\)}\\)\")",
+      "Bash(npm view *)",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\);const v=JSON.parse\\(d\\);console.log\\('Latest versions:',v.slice\\(-10\\).join\\(', '\\)\\)\")",
+      "PowerShell(cd \"C:\\\\Users\\\\Samir\\\\Desktop\\\\vibecoding\\\\Projects\\\\bustracker\\\\mobile\\\\android\"; .\\\\gradlew clean 2>&1 | Where-Object { $_ -match \"FAILED|error:|Error\" } | Select-Object -First 20)",
+      "PowerShell($env:ANDROID_HOME; $env:ANDROID_SDK_ROOT; [System.Environment]::GetEnvironmentVariable\\(\"ANDROID_HOME\", \"User\"\\); [System.Environment]::GetEnvironmentVariable\\(\"ANDROID_HOME\", \"Machine\"\\))",
+      "WebSearch"
     ]
   }
 }
