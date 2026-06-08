@@ -8,17 +8,18 @@ import { WebView } from 'react-native-webview';
  * Props:
  *   busLocation : { lat, lng } | null  — live bus position
  *   stops       : [{ name, lat, lng }] — route stop markers
+ *   etaList     : [{ name, status, etaMin }] — ETA annotations (same order as stops)
  *   style       : ViewStyle
  */
-export default function LeafletMap({ busLocation, stops = [], style }) {
+export default function LeafletMap({ busLocation, stops = [], etaList = [], style }) {
   const webviewRef = useRef(null);
   const readyRef = useRef(false);
   const pendingStopsRef = useRef(null);
   const pendingBusRef = useRef(null);
 
   const stopsJson = useMemo(() => JSON.stringify(stops), [stops]);
+  const etaJson = useMemo(() => JSON.stringify(etaList), [etaList]);
 
-  // Push stop / route updates whenever they change.
   useEffect(() => {
     const js = `updateStops(${stopsJson}); true;`;
     if (readyRef.current && webviewRef.current) {
@@ -28,7 +29,6 @@ export default function LeafletMap({ busLocation, stops = [], style }) {
     }
   }, [stopsJson]);
 
-  // Push live bus location updates.
   useEffect(() => {
     if (!busLocation) return;
     const js = `updateBus(${busLocation.lat}, ${busLocation.lng}); true;`;
@@ -38,6 +38,15 @@ export default function LeafletMap({ busLocation, stops = [], style }) {
       pendingBusRef.current = busLocation;
     }
   }, [busLocation?.lat, busLocation?.lng]);
+
+  // Inject ETA updates whenever they change (updates popup content + dot colour).
+  useEffect(() => {
+    if (!etaList.length) return;
+    const js = `updateEtas(${etaJson}); true;`;
+    if (readyRef.current && webviewRef.current) {
+      webviewRef.current.injectJavaScript(js);
+    }
+  }, [etaJson]);
 
   const html = `
 <!DOCTYPE html>
@@ -61,46 +70,69 @@ export default function LeafletMap({ busLocation, stops = [], style }) {
 <body>
   <div id="map"></div>
   <script>
-    // Initial center: bus location > first stop > world view
-    const _stops = ${stopsJson};
-    const _busLat = ${busLocation ? busLocation.lat : 'null'};
-    const _busLng = ${busLocation ? busLocation.lng : 'null'};
-    const _initLat = _busLat ?? (_stops[0]?.lat ?? 20);
-    const _initLng = _busLng ?? (_stops[0]?.lng ?? 78);
-    const _initZoom = (_busLat || _stops.length) ? 13 : 4;
-    const map = L.map('map', { zoomControl: true }).setView([_initLat, _initLng], _initZoom);
+    var _stops = ${stopsJson};
+    var _busLat = ${busLocation ? busLocation.lat : 'null'};
+    var _busLng = ${busLocation ? busLocation.lng : 'null'};
+    var _initLat = _busLat != null ? _busLat : (_stops[0] ? _stops[0].lat : 20);
+    var _initLng = _busLng != null ? _busLng : (_stops[0] ? _stops[0].lng : 78);
+    var _initZoom = (_busLat != null || _stops.length) ? 13 : 4;
+    var map = L.map('map', { zoomControl: true }).setView([_initLat, _initLng], _initZoom);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap, © CARTO',
       maxZoom: 19,
     }).addTo(map);
 
-    const busIcon = L.divIcon({
+    var busIcon = L.divIcon({
       className: '',
       html: '<div style="position:relative;width:36px;height:36px;"><div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(255,138,61,0.3);animation:pulse 1.6s ease-out infinite;"></div><div style="position:relative;background:#FF8A3D;width:36px;height:36px;border-radius:50%;border:3px solid white;box-shadow:0 4px 12px rgba(232,112,42,0.45);display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:50%;background:white;"></div></div></div>',
       iconSize: [36, 36], iconAnchor: [18, 18],
     });
 
-    const stopIcon = L.divIcon({
-      className: '',
-      html: '<div style="background:#4F8EF7;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(31,36,51,0.25);"></div>',
-      iconSize: [22, 22], iconAnchor: [11, 11],
-    });
+    function makeStopIcon(status) {
+      var bg = status === 'passed' ? '#D1D5DB'
+        : status === 'arriving' ? '#22C55E'
+        : status === 'next' ? '#FF8A3D'
+        : '#4F8EF7';
+      return L.divIcon({
+        className: '',
+        html: '<div style="background:' + bg + ';width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(31,36,51,0.25);"></div>',
+        iconSize: [22, 22], iconAnchor: [11, 11],
+      });
+    }
 
-    let stopLayer = L.layerGroup().addTo(map);
-    let routeLine = null;
-    let busMarker = null;
+    var defaultStopIcon = makeStopIcon('default');
+    var stopLayer = L.layerGroup().addTo(map);
+    var routeLine = null;
+    var busMarker = null;
+    var stopMarkers = [];
+
+    function popupHtml(index, name, status, etaMin) {
+      var label = '';
+      if (status === 'passed') {
+        label = '<br><span style="color:#9CA3AF">Passed</span>';
+      } else if (status === 'arriving') {
+        label = '<br><span style="color:#16a34a;font-weight:700">Arriving now</span>';
+      } else if (status === 'next' && etaMin != null) {
+        label = '<br><span style="color:#E8702A;font-weight:700">Next · ' + etaMin + ' min</span>';
+      } else if (etaMin != null) {
+        label = '<br><span style="color:#6B7280">~' + etaMin + ' min</span>';
+      }
+      return '<b>Stop ' + (index + 1) + ' — ' + name + '</b>' + label;
+    }
 
     function updateStops(stops) {
       stopLayer.clearLayers();
+      stopMarkers = [];
       if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
 
-      const coords = [];
-      stops.forEach((s, i) => {
+      var coords = [];
+      stops.forEach(function(s, i) {
         coords.push([s.lat, s.lng]);
-        L.marker([s.lat, s.lng], { icon: stopIcon })
+        var marker = L.marker([s.lat, s.lng], { icon: makeStopIcon(s.status || 'default') })
           .addTo(stopLayer)
-          .bindPopup('<b>Stop ' + (i + 1) + '</b><br/>' + s.name);
+          .bindPopup(popupHtml(i, s.name, s.status, s.etaMin));
+        stopMarkers.push(marker);
       });
 
       if (coords.length > 1) {
@@ -110,7 +142,7 @@ export default function LeafletMap({ busLocation, stops = [], style }) {
       }
 
       if (coords.length > 0) {
-        const bounds = L.latLngBounds(coords);
+        var bounds = L.latLngBounds(coords);
         if (busMarker) bounds.extend(busMarker.getLatLng());
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
       }
@@ -125,11 +157,17 @@ export default function LeafletMap({ busLocation, stops = [], style }) {
       map.panTo([lat, lng], { animate: true, duration: 0.4 });
     }
 
-    // Initial paint
+    function updateEtas(etaList) {
+      etaList.forEach(function(eta, i) {
+        if (!stopMarkers[i]) return;
+        stopMarkers[i].setIcon(makeStopIcon(eta.status));
+        stopMarkers[i].bindPopup(popupHtml(i, eta.name, eta.status, eta.etaMin));
+      });
+    }
+
     updateStops(${stopsJson});
     ${busLocation ? `updateBus(${busLocation.lat}, ${busLocation.lng});` : ''}
 
-    // Tell RN we're ready for live updates
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage('ready');
   </script>
 </body>

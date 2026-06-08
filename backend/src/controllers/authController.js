@@ -6,15 +6,6 @@ const prisma = new PrismaClient();
 
 async function register(req, res) {
   const { name, email, password, role, phone } = req.body;
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  const validRoles = ['ADMIN', 'DRIVER', 'PARENT', 'STUDENT'];
-  if (!validRoles.includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ error: 'Email already in use' });
@@ -43,8 +34,6 @@ async function register(req, res) {
 
 async function login(req, res) {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
-
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });

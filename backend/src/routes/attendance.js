@@ -1,12 +1,13 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const s = require('../schemas');
 
 const prisma = new PrismaClient();
 
 // ── Arduino NFC scan (no JWT — uses device API key) ──────────────────────────
-// Arduino posts to this endpoint when a student taps their NFC card
-router.post('/scan', async (req, res) => {
+router.post('/scan', validate(s.nfcScan), async (req, res) => {
   const { nfcCardId, busId, deviceKey } = req.body;
 
   // Simple device key auth for Arduino
@@ -52,8 +53,7 @@ router.post('/scan', async (req, res) => {
 });
 
 // ── Arduino GPS update (no JWT — uses device API key) ────────────────────────
-// Arduino GPS module posts location every few seconds
-router.post('/gps', async (req, res) => {
+router.post('/gps', validate(s.gpsUpdate), async (req, res) => {
   const { busId, lat, lng, speed, deviceKey } = req.body;
 
   if (deviceKey !== process.env.ARDUINO_DEVICE_KEY) {
@@ -107,7 +107,7 @@ router.get('/student/:userId', authenticate, async (req, res) => {
 });
 
 // ── Assign NFC card to student (admin only) ───────────────────────────────────
-router.post('/assign-card', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/assign-card', authenticate, authorize('ADMIN'), validate(s.assignCard), async (req, res) => {
   const { studentId, nfcCardId } = req.body;
   try {
     const student = await prisma.student.update({
