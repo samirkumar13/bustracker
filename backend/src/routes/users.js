@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const s = require('../schemas');
 
 const prisma = new PrismaClient();
 
@@ -37,7 +39,7 @@ router.get('/students-nfc', authorize('ADMIN'), async (req, res) => {
 });
 
 // Parent links to a student by student email
-router.post('/link-child', async (req, res) => {
+router.post('/link-child', validate(s.linkChild), async (req, res) => {
   if (req.user.role !== 'PARENT') return res.status(403).json({ error: 'Parents only' });
   const { studentEmail } = req.body;
   try {
@@ -75,7 +77,7 @@ router.get('/my-children', async (req, res) => {
 });
 
 // Student assigns themselves to a route + stop
-router.put('/:id/student-assignment', async (req, res) => {
+router.put('/:id/student-assignment', validate(s.studentAssignment), async (req, res) => {
   if (req.user.id !== req.params.id) return res.status(403).json({ error: 'Forbidden' });
   const { routeId, stopId } = req.body;
   try {

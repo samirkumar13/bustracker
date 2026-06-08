@@ -80,7 +80,7 @@ BUS_ID=cmpz44rar000bkmv7olehpymn node nfc-simulator.js
 - [ ] Mount GPS unit on bus, test live tracking
 
 ## 🔲 FUTURE IMPROVEMENTS
-- [ ] ETA calculation per stop
+- [x] ETA calculation per stop (client-side, haversine + nearest-stop heuristic)
 - [ ] Production deployment (backend on VPS, mobile build via EAS)
 - [ ] Input validation (Zod) on all backend routes
 
