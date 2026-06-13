@@ -11,7 +11,37 @@
 
 ---
 
-## Start Everything
+## Live Deployment
+
+| Service | URL |
+|---------|-----|
+| Backend API | https://bustracker-production-b1c6.up.railway.app |
+| Web Admin | https://bustracker-xi.vercel.app |
+| Database | Neon PostgreSQL `ap-southeast-1` |
+
+**Railway env vars:**
+```
+DATABASE_URL   = <Neon connection string>
+JWT_SECRET     = <strong secret>
+NODE_ENV       = production
+PORT           = 3000
+CLIENT_URL     = https://bustracker-xi.vercel.app
+ARDUINO_DEVICE_KEY = <key>
+```
+
+**Railway start command:** `npm start` (migrations managed via `db push` — do NOT use `prisma migrate deploy` as schema was bootstrapped with `db push --force-reset`)
+
+**Vercel env vars:**
+```
+VITE_API_URL    = https://bustracker-production-b1c6.up.railway.app/api
+VITE_SOCKET_URL = https://bustracker-production-b1c6.up.railway.app
+```
+
+> **DNS:** Some networks block Railway domains. Use 8.8.8.8 DNS or mobile data for testing.
+
+---
+
+## Start Everything (local dev)
 
 ```powershell
 docker-compose up -d                          # PostgreSQL :5432
@@ -22,10 +52,10 @@ cd simulator && node gps-simulator.js         # mock GPS (set BUS_ID inside the 
 cd simulator && node nfc-simulator.js         # mock NFC attendance
 ```
 
-Mobile `.env` must point to your machine's LAN/hotspot IP:
+Mobile `.env` — for local dev point to your machine's LAN/hotspot IP, or use the live backend:
 ```env
-EXPO_PUBLIC_API_URL=http://172.20.x.x:3000/api
-EXPO_PUBLIC_SOCKET_URL=http://172.20.x.x:3000
+EXPO_PUBLIC_API_URL=https://bustracker-production-b1c6.up.railway.app/api
+EXPO_PUBLIC_SOCKET_URL=https://bustracker-production-b1c6.up.railway.app
 ```
 
 ---
@@ -48,6 +78,18 @@ Re-seed: `cd backend && npx prisma db seed`
 
 ## Build Standalone APK
 
+### EAS Build (recommended — no Android Studio needed)
+```powershell
+npm install -g eas-cli
+eas login                                      # expo.dev account
+cd mobile
+eas build:configure                            # links project to Expo account
+eas build --platform android --profile preview # outputs .apk (~10-15 min cloud build)
+```
+Download link appears in terminal and at expo.dev/builds.
+`preview` profile in `eas.json` bakes in the Railway URLs automatically.
+
+### Local build (Android Studio)
 ```bash
 cd mobile
 
@@ -160,11 +202,9 @@ never global, password-confirmed account deletion, `JWT_SECRET` startup guard
 CORS locked down to `CLIENT_URL` allowlist.
 
 **Before production (remaining checklist):**
-- HTTPS/TLS (reverse proxy + Let's Encrypt) — tokens travel plaintext without this.
-  See README for full Caddy / Nginx deployment guide.
 - Per-device Arduino keys (currently one shared `ARDUINO_DEVICE_KEY`)
 - Rotate the GitHub token embedded in the git remote URL; use SSH instead
-- Web socket URL hardcoded to `http://localhost:3000` in the web client — make env-driven
+- Disable Neon compute auto-suspend (Neon dashboard → Compute → Edit) to eliminate cold-start delays
 
 **CORS note for dev:** set `CLIENT_URL` to a comma-separated list when using a hotspot IP:
 ```env
@@ -181,6 +221,6 @@ React Native sends no `Origin` header so the mobile app is always allowed regard
 | Item | Notes |
 |------|-------|
 | Push notifications (background) | Needs `eas build --profile development` + FCM |
-| Production deployment + security hardening | See checklist above |
 | Phase 2: multi-tenant | Per-school isolation, SCHOOL_ADMIN role, billing |
 | Arduino: flash + wire | Sketches done; waiting on hardware |
+| Neon auto-suspend off | Dashboard → Compute → Edit → disable suspend |

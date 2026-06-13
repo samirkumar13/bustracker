@@ -1,5 +1,20 @@
 # BusTracker — Project Status
-Last updated: 2026-06-11
+Last updated: 2026-06-13
+
+---
+
+## 🚀 Live Deployment
+
+| Service | URL | Platform |
+|---------|-----|----------|
+| Backend API | https://bustracker-production-b1c6.up.railway.app | Railway (Hobby) |
+| Web Admin | https://bustracker-xi.vercel.app | Vercel |
+| Database | Neon `ap-southeast-1` (Singapore) | Neon free tier |
+| Android APK | Built via EAS — `eas build --platform android --profile preview` | EAS Build |
+
+**Demo accounts:** `admin@school.com` / `admin123` · `driver@school.com` / `driver123` · `parent@school.com` / `parent123`
+
+> **DNS note:** Some networks (corporate/filtered) block Railway domains. Use 8.8.8.8 DNS or mobile data (Jio works fine).
 
 ---
 
@@ -8,6 +23,7 @@ Last updated: 2026-06-11
 ### Infrastructure
 - Docker/PostgreSQL · Backend `:3000` · Web admin `:5173` · Monorepo structure
 - Full Prisma schema with migrations + seed script
+- **Live on Railway + Neon + Vercel** (see above)
 
 ### Backend
 - Models: User, Bus, Driver, Route, Stop, Student, Parent, BusLocation, Attendance, **AuditLog**
@@ -50,7 +66,8 @@ Last updated: 2026-06-11
 - **Audit logging** — every student CRUD, account deletion, and child-link action is written to `AuditLog` table (survives user deletion — no FK to User intentionally). View in web admin at `/audit`
 
 ### Standalone Android APK
-- Standalone APK build workflow documented: `expo export:embed` (pre-bundle JS) → `gradlew assembleDebug`
+- **EAS Build** — `eas build --platform android --profile preview` outputs a direct-install `.apk`
+- `eas.json` `preview` profile bakes in Railway URLs at build time via `EXPO_PUBLIC_*` env vars
 - `expo-dev-client` removed — APK opens directly into the app, not Expo launcher
 
 ### Simulators
@@ -81,8 +98,8 @@ Last updated: 2026-06-11
 | Mobile Login — add email-format validation | Low | |
 | Web Buses form — capacity field accepts 0 / negative | Low | |
 | Push notifications (background) | Medium | Requires `eas build --profile development` + FCM config |
-| **Security hardening for prod** | Medium | HTTPS/TLS (Caddy/Nginx guide in README), per-device Arduino keys, rotate the GitHub token in git remote, make web socket URL env-driven |
-| Production deployment | Medium | VPS + Docker + reverse proxy + HTTPS + env vars |
+| **Security hardening for prod** | Medium | HTTPS already handled by Railway/Vercel; remaining: per-device Arduino keys, rotate GitHub token in git remote |
+| Neon auto-suspend | Low | Disable in Neon dashboard → Compute → Edit to eliminate cold-start delay |
 | **Phase 2: Multi-tenant** | Next big feature | Per-school data isolation, SCHOOL_ADMIN role, subscription billing, super-admin portal |
 | Arduino — flash + wire | When hardware arrives | Sketches ready; needs WiFi/SERVER_URL/BUS_ID config |
 
