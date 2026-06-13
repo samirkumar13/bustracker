@@ -20,4 +20,18 @@ api.interceptors.response.use(
   }
 );
 
+// In-memory GET cache — 60s TTL. Keeps page navigation instant during demo.
+const _cache = new Map();
+const TTL = 60_000;
+const _get = api.get.bind(api);
+api.get = (url, config) => {
+  const key = url;
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.ts < TTL) return hit.promise;
+  const promise = _get(url, config);
+  _cache.set(key, { promise, ts: Date.now() });
+  promise.catch(() => _cache.delete(key));
+  return promise;
+};
+
 export default api;
