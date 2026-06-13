@@ -33,7 +33,8 @@ export default function LiveMap() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000', { auth: { token } });
+    const PROD_SOCKET = 'https://bustracker-production-b1c6.up.railway.app';
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || PROD_SOCKET, { auth: { token } });
 
     socketRef.current.on('bus:location', ({ busId, lat, lng }) => {
       setLocations(prev => ({ ...prev, [busId]: { lat, lng } }));
