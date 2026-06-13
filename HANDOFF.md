@@ -149,11 +149,38 @@ Stop-Process -Name "node" -Force
 
 ---
 
+## Security
+
+**Implemented:** JWT + bcrypt, RBAC per route, object-level IDOR checks
+(parents see only their own children; bus rosters admin-only), Zod validation,
+Socket.IO events scoped to private rooms (`parent:<id>`, `admins`, `bus:<id>`)
+never global, password-confirmed account deletion, `JWT_SECRET` startup guard
+(throws in prod if missing/default), `.env` gitignored, audit logging,
+`helmet` security headers, `express-rate-limit` on `/api/auth/*` (20 req / 15 min),
+CORS locked down to `CLIENT_URL` allowlist.
+
+**Before production (remaining checklist):**
+- HTTPS/TLS (reverse proxy + Let's Encrypt) — tokens travel plaintext without this.
+  See README for full Caddy / Nginx deployment guide.
+- Per-device Arduino keys (currently one shared `ARDUINO_DEVICE_KEY`)
+- Rotate the GitHub token embedded in the git remote URL; use SSH instead
+- Web socket URL hardcoded to `http://localhost:3000` in the web client — make env-driven
+
+**CORS note for dev:** set `CLIENT_URL` to a comma-separated list when using a hotspot IP:
+```env
+CLIENT_URL="http://localhost:5173,http://172.20.197.199:5173"
+```
+React Native sends no `Origin` header so the mobile app is always allowed regardless.
+
+> Realtime gotcha: parents auto-join `parent:<userId>` and admins join `admins`
+> on socket connect (see socketService). Attendance events use `attendance:update`
+> (to the parent room) and `attendance:new` (to admins) — NOT a global emit.
+
 ## What's Left
 
 | Item | Notes |
 |------|-------|
 | Push notifications (background) | Needs `eas build --profile development` + FCM |
-| Production deployment | VPS + HTTPS + env vars |
+| Production deployment + security hardening | See checklist above |
 | Phase 2: multi-tenant | Per-school isolation, SCHOOL_ADMIN role, billing |
 | Arduino: flash + wire | Sketches done; waiting on hardware |

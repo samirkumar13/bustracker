@@ -15,7 +15,8 @@ export default function Input({ label, icon, iconSet = 'feather', style, ...prop
           onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
           onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
           placeholderTextColor={colors.textFaint}
-          style={styles.input}
+          selectionColor={colors.primary}
+          style={[styles.input, { color: colors.text }]}
         />
       </View>
     </View>

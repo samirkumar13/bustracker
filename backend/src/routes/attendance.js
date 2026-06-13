@@ -35,17 +35,19 @@ router.post('/scan', validate(s.nfcScan), async (req, res) => {
       data: { studentId: student.id, busId, status },
     });
 
-    // Emit to parent's userId room (parent listens on their own userId)
+    // Notify ONLY this child's parent (private room, not a global broadcast)
     const parentUserId = student.parent?.userId;
-    req.io.emit(`attendance:${parentUserId}`, {
-      studentName: student.name,
-      status,
-      busId,
-      timestamp: attendance.timestamp,
-    });
+    if (parentUserId) {
+      req.io.to(`parent:${parentUserId}`).emit('attendance:update', {
+        studentName: student.name,
+        status,
+        busId,
+        timestamp: attendance.timestamp,
+      });
+    }
 
-    // Broadcast to admin attendance page (real-time table update)
-    req.io.emit('attendance:new', {
+    // Real-time table update for admins only (contains all students' names)
+    req.io.to('admins').emit('attendance:new', {
       id: attendance.id,
       busId,
       status,
@@ -81,8 +83,8 @@ router.post('/gps', validate(s.gpsUpdate), async (req, res) => {
   }
 });
 
-// ── Get attendance for a bus (today) ─────────────────────────────────────────
-router.get('/bus/:busId', authenticate, async (req, res) => {
+// ── Get attendance for a bus (today) — admin only (full roster of all students) ─
+router.get('/bus/:busId', authenticate, authorize('ADMIN'), async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -95,8 +97,19 @@ router.get('/bus/:busId', authenticate, async (req, res) => {
 });
 
 // ── Get attendance for a student record ───────────────────────────────────────
+// Admin can view any student; a parent may only view a child linked to them.
 router.get('/student/:studentId', authenticate, async (req, res) => {
   try {
+    if (req.user.role !== 'ADMIN') {
+      const student = await prisma.student.findUnique({
+        where: { id: req.params.studentId },
+        select: { parent: { select: { userId: true } } },
+      });
+      if (!student || student.parent?.userId !== req.user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     const records = await prisma.attendance.findMany({
       where: { studentId: req.params.studentId },
       include: { bus: { select: { plateNumber: true } } },

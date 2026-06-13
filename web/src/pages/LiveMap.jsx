@@ -33,7 +33,7 @@ export default function LiveMap() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    socketRef.current = io('http://localhost:3000', { auth: { token } });
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000', { auth: { token } });
 
     socketRef.current.on('bus:location', ({ busId, lat, lng }) => {
       setLocations(prev => ({ ...prev, [busId]: { lat, lng } }));

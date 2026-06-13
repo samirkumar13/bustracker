@@ -36,7 +36,7 @@ export default function AttendanceScreen() {
     let socket;
     (async () => {
       socket = await connectSocket();
-      socket.on(`attendance:${user.id}`, (event) => {
+      socket.on('attendance:update', (event) => {
         setRecords((prev) => [{
           id: Date.now().toString(),
           status: event.status,

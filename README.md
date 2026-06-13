@@ -120,6 +120,14 @@ bustracker/
 DATABASE_URL="postgresql://bustracker:bustracker123@localhost:5432/bustracker"
 JWT_SECRET="change-this-in-production"
 PORT=3000
+
+# Comma-separated list of allowed web origins.
+# The React Native app sends no Origin header so it is always allowed.
+# For hotspot dev add your machine IP: "http://localhost:5173,http://172.20.x.x:5173"
+CLIENT_URL="http://localhost:5173"
+
+# Shared Arduino authentication key
+ARDUINO_DEVICE_KEY="change-this-arduino-key"
 ```
 
 ### mobile/.env
@@ -187,7 +195,87 @@ EXPO_PUBLIC_SOCKET_URL=http://<YOUR_LAN_IP>:3000
 - **GPS retention:** Location records older than 90 days are deleted automatically by a cron job (runs daily at 2 AM).
 - **Consent:** Parent registration requires explicit data collection consent before account creation.
 - **Account deletion:** Parents can delete their own account (and unlink their children) from the Profile screen.
-- **Audit log:** All admin/user actions (student CRUD, account deletion, child linking) are logged with timestamp, user, IP, and action detail. View at `/audit` in the web admin.
+- **Audit log:** All admin/user actions (student CRUD, account deletion, child linking, broadcasts) are logged with timestamp, user, IP, and action detail. View at `/audit` in the web admin.
+
+---
+
+## Security
+
+### Implemented
+- **Authentication:** JWT (7-day expiry), bcrypt password hashing (10 rounds).
+- **Authorization (RBAC):** ADMIN / DRIVER / PARENT roles enforced per route. Object-level checks prevent IDOR — a parent can only read their own children's data; bus rosters are admin-only.
+- **Input validation:** Zod schemas on every mutating endpoint.
+- **Scoped realtime events:** Socket.IO events are emitted to private rooms (`parent:<id>`, `admins`, `bus:<id>`) — never broadcast globally. Parents only receive alerts for their own children.
+- **Secret hygiene:** Server refuses to start in production with a missing/default `JWT_SECRET`. `.env` files are gitignored.
+- **Account deletion:** Requires password re-confirmation before wiping data.
+- **Device auth:** Arduino endpoints require a shared `ARDUINO_DEVICE_KEY` (not a user JWT).
+- **Security headers:** `helmet` sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, HSTS, and more on every response.
+- **Rate limiting:** `express-rate-limit` on `/api/auth/*` — 20 attempts per IP per 15-minute window; responds with `429` and a `RateLimit-*` header.
+- **CORS allowlist:** `origin: '*'` replaced with an env-driven allowlist (`CLIENT_URL`). React Native app (no `Origin` header) is always allowed; unrecognised browser origins receive a CORS error.
+
+### Before production
+- [ ] **HTTPS/TLS** — terminate at a reverse proxy (see deployment guide below). All tokens travel in plaintext over HTTP without this.
+- [ ] **Per-device Arduino keys** — replace the single shared key with one key per device, revocable.
+- [ ] **Rotate the GitHub token** currently embedded in the git remote URL; use SSH or a credential helper instead.
+- [ ] **Move web socket URL off `http://localhost:3000`** — the web client hardcodes it; make it env-driven for deployment.
+
+---
+
+## HTTPS / TLS Deployment (Caddy — recommended)
+
+> Use this on any VPS (Hetzner, DigitalOcean, etc.) running Ubuntu/Debian.
+> Caddy auto-obtains and renews Let's Encrypt certificates with zero config.
+
+### 1. Install Caddy
+```bash
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install caddy
+```
+
+### 2. Point your domain DNS → server IP
+Create an `A` record for `api.yourschool.com` and `app.yourschool.com` before proceeding.
+
+### 3. /etc/caddy/Caddyfile
+```caddy
+api.yourschool.com {
+    reverse_proxy localhost:3000
+}
+
+app.yourschool.com {
+    reverse_proxy localhost:5173
+}
+```
+```bash
+sudo systemctl reload caddy
+```
+Caddy fetches the TLS certificate automatically on first request.
+
+### 4. Update environment variables
+```env
+# backend/.env
+NODE_ENV=production
+CLIENT_URL="https://app.yourschool.com"
+
+# mobile/.env
+EXPO_PUBLIC_API_URL=https://api.yourschool.com/api
+EXPO_PUBLIC_SOCKET_URL=https://api.yourschool.com
+```
+
+### Nginx alternative
+```nginx
+server {
+    listen 443 ssl;
+    server_name api.yourschool.com;
+    ssl_certificate     /etc/letsencrypt/live/api.yourschool.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.yourschool.com/privkey.pem;
+    location / { proxy_pass http://localhost:3000; }
+}
+```
+```bash
+sudo certbot --nginx -d api.yourschool.com
+```
 
 ---
 

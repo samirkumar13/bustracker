@@ -63,8 +63,8 @@ function ParentStudentTabs() {
     (async () => {
       socket = await connectSocket();
 
-      // Attendance alerts
-      socket.on(`attendance:${user.id}`, (event) => {
+      // Attendance alerts (private room — only this parent receives them)
+      socket.on('attendance:update', (event) => {
         showLocalNotification(
           event.status === 'BOARDED' ? '✅ Child boarded bus' : '🔔 Child exited bus',
           `${event.studentName} ${event.status === 'BOARDED' ? 'boarded' : 'exited'} the bus`
@@ -95,7 +95,7 @@ function ParentStudentTabs() {
       });
     })();
     return () => {
-      socket?.off(`attendance:${user.id}`);
+      socket?.off('attendance:update');
       socket?.off('geofence:alert');
       socket?.off('admin:broadcast');
     };

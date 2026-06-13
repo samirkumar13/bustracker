@@ -1,5 +1,5 @@
 # BusTracker — Project Status
-Last updated: 2026-06-08
+Last updated: 2026-06-11
 
 ---
 
@@ -61,6 +61,17 @@ Last updated: 2026-06-08
 - `gps_tracker/` — ESP32 + NEO-6M, posts GPS every 5s to `/api/arduino/gps`
 - `nfc_attendance/` — ESP32 + RC522, scans Mifare cards, buzzer + LED feedback
 
+### Security
+- JWT auth (7d) + bcrypt password hashing
+- RBAC per route + **object-level IDOR checks** (parents see only their own children; bus rosters admin-only)
+- Zod validation on all mutating endpoints
+- **Socket.IO events scoped to private rooms** (`parent:<id>`, `admins`, `bus:<id>`) — never broadcast globally
+- `JWT_SECRET` startup guard (throws in production if missing/default)
+- Password-confirmed account deletion; `.env` gitignored; Arduino device-key auth
+- **`helmet`** — sets `X-Frame-Options`, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, etc.
+- **`express-rate-limit`** on `/api/auth/*` — 20 attempts / IP / 15 min, `429` + `RateLimit-*` headers
+- **CORS locked down** — `origin:'*'` replaced with `CLIENT_URL` allowlist (comma-sep for multiple origins)
+
 ---
 
 ## 🔲 Remaining
@@ -70,6 +81,7 @@ Last updated: 2026-06-08
 | Mobile Login — add email-format validation | Low | |
 | Web Buses form — capacity field accepts 0 / negative | Low | |
 | Push notifications (background) | Medium | Requires `eas build --profile development` + FCM config |
+| **Security hardening for prod** | Medium | HTTPS/TLS (Caddy/Nginx guide in README), per-device Arduino keys, rotate the GitHub token in git remote, make web socket URL env-driven |
 | Production deployment | Medium | VPS + Docker + reverse proxy + HTTPS + env vars |
 | **Phase 2: Multi-tenant** | Next big feature | Per-school data isolation, SCHOOL_ADMIN role, subscription billing, super-admin portal |
 | Arduino — flash + wire | When hardware arrives | Sketches ready; needs WiFi/SERVER_URL/BUS_ID config |

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Alert, ScrollView, TouchableOpacity,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { authAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,7 +43,11 @@ export default function RegisterScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
         <Icon name="chevron-left" size={22} color={colors.text} />
       </TouchableOpacity>
@@ -87,12 +92,13 @@ export default function RegisterScreen({ navigation }) {
         <Text style={styles.linkAccent}>Log in</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  scroll: { padding: spacing.xl, paddingTop: 60, paddingBottom: 40 },
+  scroll: { padding: spacing.xl, paddingTop: 60, paddingBottom: 80 },
   backBtn: {
     width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline, marginBottom: spacing.lg,

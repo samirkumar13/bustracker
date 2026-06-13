@@ -135,6 +135,11 @@ function setupSocketHandlers(io) {
       socket.join(`parent:${socket.user.id}`);
     }
 
+    // Admins join a shared room for the live attendance feed (all students' data)
+    if (socket.user.role === 'ADMIN') {
+      socket.join('admins');
+    }
+
     // ── Driver events ────────────────────────────────────────────────────────
 
     socket.on('driver:start', ({ busId }) => {
