@@ -1,10 +1,8 @@
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const s = require('../schemas');
-
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 // ── Arduino NFC scan (no JWT — uses device API key) ──────────────────────────
 router.post('/scan', validate(s.nfcScan), async (req, res) => {
